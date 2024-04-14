@@ -22,6 +22,7 @@ class Game{
 		this.assetsPath = 'assets/';
 		
 		this.remotePlayers = [];
+		this.remoteColliders = [];
 		this.initialisingPlayers = [];
 		this.remoteData = [];
 		
@@ -123,6 +124,9 @@ class Game{
 		
 		this.loadEnvironment(loader);
 		
+		this.speechBubble = new SpeechBubble(this, "", 150);
+		this.speechBubble.mesh.position.set(0, 350, 0);
+		
 		this.joystick = new JoyStick({
 			onMove: this.playerControl,
 			game: this
@@ -133,8 +137,14 @@ class Game{
 		this.renderer.setSize( window.innerWidth, window.innerHeight );
 		this.renderer.shadowMap.enabled = true;
 		this.container.appendChild( this.renderer.domElement );
-			
-		window.addEventListener( 'resize', function(){ game.onWindowResize(); }, false );
+		
+		if ('ontouchstart' in window){
+			window.addEventListener( 'touchdown', (event) => game.onMouseDown(event), false );
+		}else{
+			window.addEventListener( 'mousedown', (event) => game.onMouseDown(event), false );	
+		}
+		
+		window.addEventListener( 'resize', () => game.onWindowResize(), false );
 	}
 	
 	loadEnvironment(loader){
@@ -219,6 +229,9 @@ class Game{
 		const back = new THREE.Object3D();
 		back.position.set(0, 300, -1050);
 		back.parent = this.player.object;
+		const chat = new THREE.Object3D();
+		chat.position.set(0, 200, -450);
+		chat.parent = this.player.object;
 		const wide = new THREE.Object3D();
 		wide.position.set(178, 139, 1665);
 		wide.parent = this.player.object;
@@ -228,45 +241,29 @@ class Game{
 		const collect = new THREE.Object3D();
 		collect.position.set(40, 82, 94);
 		collect.parent = this.player.object;
-		this.cameras = { front, back, wide, overhead, collect };
+		this.cameras = { front, back, wide, overhead, collect, chat };
 		this.activeCamera = this.cameras.back;	
 	}
 	
-	getMousePosition(clientX, clientY){
-		const pos = new THREE.Vector2();
-		pos.x = (clientX / this.renderer.domElement.clientWidth) * 2 - 1;
-		pos.y = -(clientY / this.renderer.domElement.clientHeight) * 2 + 1;
-		return pos;
-	}
-	
-	tap(evt){
-		if (!this.interactive) return;
-		
-		let clientX = evt.targetTouches ? evt.targetTouches[0].pageX : evt.clientX;
-		let clientY = evt.targetTouches ? evt.targetTouches[0].pageY : evt.clientY;
-		
-		this.mouse = this.getMousePosition(clientX, clientY);
-	}
-	
-	showMessage(msg, fontSize=20, onOK=null){
-		const txt = document.getElementById('message_text');
-		txt.innerHTML = msg;
-		txt.style.fontSize = fontSize + 'px';
-		const btn = document.getElementById('message_ok');
-		const panel = document.getElementById('message');
-		const game = this;
-		if (onOK!=null){
-			btn.onclick = function(){ 
-				panel.style.display = 'none';
-				onOK.call(game); 
-			}
-		}else{
-			btn.onclick = function(){
-				panel.style.display = 'none';
-			}
-		}
-		panel.style.display = 'flex';
-	}
+	// showMessage(msg, fontSize=20, onOK=null){
+	// 	const txt = document.getElementById('message_text');
+	// 	txt.innerHTML = msg;
+	// 	txt.style.fontSize = fontSize + 'px';
+	// 	const btn = document.getElementById('message_ok');
+	// 	const panel = document.getElementById('message');
+	// 	const game = this;
+	// 	if (onOK!=null){
+	// 		btn.onclick = function(){ 
+	// 			panel.style.display = 'none';
+	// 			onOK.call(game); 
+	// 		}
+	// 	}else{
+	// 		btn.onclick = function(){
+	// 			panel.style.display = 'none';
+	// 		}
+	// 	}
+	// 	panel.style.display = 'flex';
+	// }
 	
 	onWindowResize() {
 		this.camera.aspect = window.innerWidth / window.innerHeight;
@@ -283,6 +280,7 @@ class Game{
 		const game = this;
 		//Get all remotePlayers from remoteData array
 		const remotePlayers = [];
+		const remoteColliders = [];
 		
 		this.remoteData.forEach( function(data){
 			if (game.player.id != data.id){
@@ -303,13 +301,82 @@ class Game{
 					}else{
 						//Player exists
 						remotePlayers.push(rplayer);
+						remoteColliders.push(rplayer.collider);
 					}
 				}
 			}
 		});
 		
+		this.scene.children.forEach( function(object){
+			if (object.userData.remotePlayer && game.getRemotePlayerById(object.userData.id)==undefined){
+				game.scene.remove(object);
+			}	
+		});
+		
 		this.remotePlayers = remotePlayers;
+		this.remoteColliders = remoteColliders;
 		this.remotePlayers.forEach(function(player){ player.update( dt ); });	
+	}
+	
+	onMouseDown( event ) {
+		if (this.remoteColliders===undefined || this.remoteColliders.length==0 || this.speechBubble===undefined || this.speechBubble.mesh===undefined) return;
+		
+		// calculate mouse position in normalized device coordinates
+		// (-1 to +1) for both components
+		const mouse = new THREE.Vector2();
+		mouse.x = ( event.clientX / this.renderer.domElement.clientWidth ) * 2 - 1;
+		mouse.y = - ( event.clientY / this.renderer.domElement.clientHeight ) * 2 + 1;
+
+		const raycaster = new THREE.Raycaster();
+		raycaster.setFromCamera( mouse, this.camera );
+		
+		const intersects = raycaster.intersectObjects( this.remoteColliders );
+		const chat = document.getElementById('chat');
+		
+		if (intersects.length>0){
+			const object = intersects[0].object;
+			const players = this.remotePlayers.filter( function(player){
+				if (player.collider!==undefined && player.collider==object){
+					return true;
+				}
+			});
+			console.log(this.player.id)
+			if (players.length>0){
+				const player = players[0];
+				console.log(`onMouseDown: player ${player.id}`);
+				this.speechBubble.player = player;
+				this.speechBubble.update('');
+				this.scene.add(this.speechBubble.mesh);
+				this.chatSocketId = player.id;
+				chat.style.bottom = '0px';
+				this.activeCamera = this.cameras.chat;
+				this.player.joinMedia({userId: this.player.id, remoteUserId: player.id}) // call remote when player is clicked
+			}
+		}else{
+			//Is the chat panel visible?
+			if (chat.style.bottom=='0px' && (window.innerHeight - event.clientY)>40){
+				console.log("onMouseDown: No player found");
+				if (this.speechBubble.mesh.parent!==null) this.speechBubble.mesh.parent.remove(this.speechBubble.mesh);
+				delete this.speechBubble.player;
+				delete this.chatSocketId;
+				chat.style.bottom = '-50px';
+				this.activeCamera = this.cameras.back;
+			}else{
+				console.log("onMouseDown: typing");
+			}
+		}
+	}
+	
+	getRemotePlayerById(id){
+		if (this.remotePlayers===undefined || this.remotePlayers.length==0) return;
+		
+		const players = this.remotePlayers.filter(function(player){
+			if (player.id == id) return true;
+		});	
+		
+		if (players.length==0) return;
+		
+		return players[0];
 	}
 	
 	animate() {
@@ -334,7 +401,11 @@ class Game{
 		if (this.cameras!=undefined && this.cameras.active!=undefined && this.player!==undefined && this.player.object!==undefined){
 			this.camera.position.lerp(this.cameras.active.getWorldPosition(new THREE.Vector3()), 0.05);
 			const pos = this.player.object.position.clone();
-			pos.y += 300;
+			if (this.cameras.active==this.cameras.chat){
+				pos.y += 200;
+			}else{
+				pos.y += 300;
+			}
 			this.camera.lookAt(pos);
 		}
 		
@@ -342,6 +413,8 @@ class Game{
 			this.sun.position.copy( this.camera.position );
 			this.sun.position.y += 10;
 		}
+		
+		if (this.speechBubble!==undefined) this.speechBubble.show(this.camera.position);
 		
 		this.renderer.render( this.scene, this.camera );
 	}
@@ -414,8 +487,17 @@ class Player{
 				game.animations.Idle = object.animations[0];
 				if (player.initSocket!==undefined) player.initSocket();
 			}else{
-				const player = game.initialisingPlayers.splice(game.initialisingPlayers.indexOf(this), 1);
-				game.remotePlayers.push(player[0]);
+				const geometry = new THREE.BoxGeometry(100,300,100);
+				const material = new THREE.MeshBasicMaterial({visible:false});
+				const box = new THREE.Mesh(geometry, material);
+				box.name = "Collider";
+				box.position.set(0, 150, 0);
+				player.object.add(box);
+				player.collider = box;
+				player.object.userData.id = player.id;
+				player.object.userData.remotePlayer = true;
+				const players = game.initialisingPlayers.splice(game.initialisingPlayers.indexOf(this), 1);
+				game.remotePlayers.push(players[0]);
 			}
 			
 			if (game.animations.Idle!==undefined) player.action = "Idle";
@@ -459,15 +541,72 @@ class Player{
 	}
 }
 
+// html for user video and remote video
+const myVideo = document.getElementById('userVideo')
+const remoteVideo = document.getElementById('remoteVideo')
+
+// mute current user video to avoid echo
+myVideo.muted = true
+let remotePeer = undefined
+
+// this function initiates the call with a user
+function connectToNewUser(userId, stream, myPeer) {
+  const call = myPeer.call(userId, stream) // emit call event
+  call.on('stream', userVideoStream => {
+    addVideoStream(remoteVideo, userVideoStream)
+  })
+  call.on('close', () => {
+    remoteVideo.remove()
+  })
+
+  remotePeer = call
+}
+
+// this function is responsible for the video that plays on both html video.
+function addVideoStream(video, stream) {
+  video.srcObject = stream
+  video.addEventListener('loadedmetadata', () => {
+    video.play()
+  })
+}
+
 class PlayerLocal extends Player{
 	constructor(game, model){
 		super(game, model);
 		
 		const player = this;
-		const socket = io();
+		const socket = io.connect();
 		socket.on('setId', function(data){
 			player.id = data.id;
+			// initialize peerjs using users socket id
+			const myPeer = new Peer(data.id)
+
+			// get current user media
+			navigator.mediaDevices.getUserMedia({
+				video: true,
+				audio: true
+			}).then(stream => {
+				// add current video stream to the video element on the left
+				addVideoStream(myVideo, stream)
+
+				// listen for call event
+				myPeer.on('call', call => {
+					call.answer(stream) // answer call and send the caller current user stream
+					call.on('stream', userVideoStream => { // listen for caller streams
+						addVideoStream(remoteVideo, userVideoStream) // add caller stream to the video on the right
+					})
+				})
+
+				socket.on('join media', ({id}) => { // listen for 'join media' socket event
+					console.log('joined media: ', id)
+					connectToNewUser(id, stream, myPeer) // connect to user by calling the user. Check the connectToNewUser function to see how the call was initiated 
+				})
+			})
 		});
+		socket.on('media disconnected', ({id}) => {
+			// remove remote user video when they disconnect
+			if (remotePeer) remotePeer.close()
+		})
 		socket.on('remoteData', function(data){
 			game.remoteData = data;
 		});
@@ -482,18 +621,38 @@ class PlayerLocal extends Player{
 				if (index!=-1){
 					game.remotePlayers.splice( index, 1 );
 					game.scene.remove(players[0].object);
-				}else{
-					index = game.initialisingPlayers.indexOf(data.id);
-					if (index!=-1){
-						const player = game.initialisingPlayers[index];
-						player.deleted = true;
-						game.initialisingPlayers.splice(index, 1);
-					}
 				}
+            }else{
+                index = game.initialisingPlayers.indexOf(data.id);
+                if (index!=-1){
+                    const player = game.initialisingPlayers[index];
+                    player.deleted = true;
+                    game.initialisingPlayers.splice(index, 1);
+                }
 			}
-		})
-
+		});
+        
+		socket.on('chat message', function(data){
+			document.getElementById('chat').style.bottom = '0px';
+			const player = game.getRemotePlayerById(data.id);
+			game.speechBubble.player = player;
+			game.chatSocketId = player.id;
+			game.activeCamera = game.cameras.chat;
+			game.speechBubble.update(data.message);
+		});
+        
+		$('#msg-form').submit(function(e){
+			socket.emit('chat message', { id:game.chatSocketId, message:$('#m').val() });
+			$('#m').val('');
+			return false;
+		});
+		
 		this.socket = socket;
+	}
+
+	// this method is responsible for starting a media connection when a player is clicked. check where it's called to understand better
+	joinMedia({userId, remoteUserId}) {
+		this.socket.emit('join media', {userId, remoteUserId}) // emit 'join media' event to the server by passing the remoteUserId (our desired user we wish to connect to) and userId (our user id)
 	}
 	
 	initSocket(){
@@ -601,5 +760,107 @@ class PlayerLocal extends Player{
 		this.object.rotateY(this.motion.turn*dt);
 		
 		this.updateSocket();
+	}
+}
+
+class SpeechBubble{
+	constructor(game, msg, size=1){
+		this.config = { font:'Calibri', size:24, padding:10, colour:'#222', width:256, height:256 };
+		
+		const planeGeometry = new THREE.PlaneGeometry(size, size);
+		const planeMaterial = new THREE.MeshBasicMaterial()
+		this.mesh = new THREE.Mesh(planeGeometry, planeMaterial);
+		game.scene.add(this.mesh);
+		
+		const self = this;
+		const loader = new THREE.TextureLoader();
+		loader.load(
+			// resource URL
+			`${game.assetsPath}images/speech.png`,
+
+			// onLoad callback
+			function ( texture ) {
+				// in this example we create the material when the texture is loaded
+				self.img = texture.image;
+				self.mesh.material.map = texture;
+				self.mesh.material.transparent = true;
+				self.mesh.material.needsUpdate = true;
+				if (msg!==undefined) self.update(msg);
+			},
+
+			// onProgress callback currently not supported
+			undefined,
+
+			// onError callback
+			function ( err ) {
+				console.error( 'An error happened.' );
+			}
+		);
+	}
+	
+	update(msg){
+		if (this.mesh===undefined) return;
+		
+		let context = this.context;
+		
+		if (this.mesh.userData.context===undefined){
+			const canvas = this.createOffscreenCanvas(this.config.width, this.config.height);
+			this.context = canvas.getContext('2d');
+			context = this.context;
+			context.font = `${this.config.size}pt ${this.config.font}`;
+			context.fillStyle = this.config.colour;
+			context.textAlign = 'center';
+			this.mesh.material.map = new THREE.CanvasTexture(canvas);
+		}
+		
+		const bg = this.img;
+		context.clearRect(0, 0, this.config.width, this.config.height);
+		context.drawImage(bg, 0, 0, bg.width, bg.height, 0, 0, this.config.width, this.config.height);
+		this.wrapText(msg, context);
+		
+		this.mesh.material.map.needsUpdate = true;
+	}
+	
+	createOffscreenCanvas(w, h) {
+		const canvas = document.createElement('canvas');
+		canvas.width = w;
+		canvas.height = h;
+		return canvas;
+	}
+	
+	wrapText(text, context){
+		const words = text.split(' ');
+        let line = '';
+		const lines = [];
+		const maxWidth = this.config.width - 2*this.config.padding;
+		const lineHeight = this.config.size + 8;
+		
+		words.forEach( function(word){
+			const testLine = `${line}${word} `;
+        	const metrics = context.measureText(testLine);
+        	const testWidth = metrics.width;
+			if (testWidth > maxWidth) {
+				lines.push(line);
+				line = `${word} `;
+			}else {
+				line = testLine;
+			}
+		});
+		
+		if (line != '') lines.push(line);
+		
+		let y = (this.config.height - lines.length * lineHeight)/2;
+		
+		lines.forEach( function(line){
+			context.fillText(line, 128, y);
+			y += lineHeight;
+		});
+	}
+	
+	show(pos){
+		if (this.mesh!==undefined && this.player!==undefined){
+			this.mesh.position.set(this.player.object.position.x, this.player.object.position.y + 380, this.player.object.position.z);
+			this.mesh.lookAt(pos);
+		}
 	}
 }
