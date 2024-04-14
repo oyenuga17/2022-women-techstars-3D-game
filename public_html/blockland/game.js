@@ -580,9 +580,9 @@ class PlayerLocal extends Player{
 			player.id = data.id;
 			// initialize peerjs using users socket id
 			const myPeer = new Peer(data.id, {
-				host: '54.187.200.255',
-				port: 9000,
-				path: '/myapp'
+				// host: '54.187.200.255',
+				// port: 9000,
+				path: '/peerjs/myapp'
 			})
 			console.log({myPeer})
 
