@@ -579,7 +579,12 @@ class PlayerLocal extends Player{
 		socket.on('setId', function(data){
 			player.id = data.id;
 			// initialize peerjs using users socket id
-			const myPeer = new Peer(data.id)
+			const myPeer = new Peer(data.id, {
+				host: process.env.PEER_HOST || 'localhost',
+				port: 9000,
+				path: '/myapp'
+			})
+			console.log({myPeer})
 
 			// get current user media
 			navigator.mediaDevices.getUserMedia({
