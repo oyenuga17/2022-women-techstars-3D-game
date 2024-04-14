@@ -580,7 +580,7 @@ class PlayerLocal extends Player{
 			player.id = data.id;
 			// initialize peerjs using users socket id
 			const myPeer = new Peer(data.id, {
-				host: process.env.PEER_HOST || 'localhost',
+				host: 'https://github.dev/oyenuga17/2022-women-techstars-3D-game',
 				port: 9000,
 				path: '/myapp'
 			})
