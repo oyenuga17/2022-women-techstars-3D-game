@@ -2,6 +2,9 @@ const express = require('express');
 const app = express();
 const http = require('http').Server(app);
 const io = require('socket.io')(http);
+const { PeerServer } = require("peer");
+
+const peerServer = PeerServer({ port: 9000, path: "/myapp" });
 
 app.use(express.static('public_html/blockland/'));
 app.use(express.static('public_html/libs'));
