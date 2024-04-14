@@ -5,9 +5,9 @@ const io = require('socket.io')(http);
 
 app.use(express.static('public_html/blockland/'));
 app.use(express.static('public_html/libs'));
-app.use(express.static('public_html/blockland/'));
+app.use(express.static('public_html/blockland/v3'));
 app.get('/',function(req, res) {
-    res.sendFile(__dirname + 'public_html/blockland/index.html');
+    res.sendFile(__dirname + 'public_html/blockland/v3/index.html');
 });
 
 io.sockets.on('connection', function(socket){
@@ -40,6 +40,21 @@ io.sockets.on('connection', function(socket){
 		socket.userData.pb = data.pb,
 		socket.userData.action = data.action;
 	});
+	
+	socket.on('chat message', function(data){
+		console.log(`chat message:${data.id} ${data.message}`);
+		io.to(data.id).emit('chat message', { id: socket.id, message: data.message });
+	})
+
+	socket.on('join media', function(data){
+		// join remote user media.
+		io.to(data.remoteUserId).emit('join media', { id: data.userId });
+
+		socket.on('disconnect', () => {
+			// disconnect remote user
+			io.to(data.remoteUserId).emit('media disconnected', { id: data.userId });
+    })
+	})
 });
 
 http.listen(2002, function(){
