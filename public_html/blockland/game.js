@@ -350,7 +350,7 @@ class Game{
 				this.chatSocketId = player.id;
 				chat.style.bottom = '0px';
 				this.activeCamera = this.cameras.chat;
-				this.player.joinMedia({userId: this.player.id, remoteUserId: player.id}) // call remote when player is clicked
+				// this.player.joinMedia({userId: this.player.id, remoteUserId: player.id}) // call remote when player is clicked
 			}
 		}else{
 			//Is the chat panel visible?
