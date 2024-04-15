@@ -2,7 +2,6 @@ const express = require('express');
 const app = express();
 const http = require('http').Server(app);
 const io = require('socket.io')(http);
-const { ExpressPeerServer } = require("peer");
 
 app.use(express.static('public_html/blockland/'));
 app.use(express.static('public_html/libs'));
@@ -57,13 +56,6 @@ io.sockets.on('connection', function(socket){
     })
 	})
 });
-
-const peerServer = ExpressPeerServer(http, {
-	debug: true,
-	path: "/myapp",
-});
-
-app.use("/peerjs", peerServer);
 
 http.listen(2002, function(){
   console.log('listening on *:2002');
