@@ -350,7 +350,7 @@ class Game{
 				this.chatSocketId = player.id;
 				chat.style.bottom = '0px';
 				this.activeCamera = this.cameras.chat;
-				// this.player.joinMedia({userId: this.player.id, remoteUserId: player.id}) // call remote when player is clicked
+				this.player.joinMedia({userId: this.player.id, remoteUserId: player.id}) // call remote when player is clicked
 			}
 		}else{
 			//Is the chat panel visible?
@@ -542,33 +542,33 @@ class Player{
 }
 
 // html for user video and remote video
-// const myVideo = document.getElementById('userVideo')
-// const remoteVideo = document.getElementById('remoteVideo')
+const myVideo = document.getElementById('userVideo')
+const remoteVideo = document.getElementById('remoteVideo')
 
-// // mute current user video to avoid echo
-// myVideo.muted = true
-// let remotePeer = undefined
+// mute current user video to avoid echo
+myVideo.muted = true
+let remotePeer = undefined
 
-// // this function initiates the call with a user
-// function connectToNewUser(userId, stream, myPeer) {
-//   const call = myPeer.call(userId, stream) // emit call event
-//   call.on('stream', userVideoStream => {
-//     addVideoStream(remoteVideo, userVideoStream)
-//   })
-//   call.on('close', () => {
-//     remoteVideo.remove()
-//   })
+// this function initiates the call with a user
+function connectToNewUser(userId, stream, myPeer) {
+  const call = myPeer.call(userId, stream) // emit call event
+  call.on('stream', userVideoStream => {
+    addVideoStream(remoteVideo, userVideoStream)
+  })
+  call.on('close', () => {
+    remoteVideo.remove()
+  })
 
-//   remotePeer = call
-// }
+  remotePeer = call
+}
 
-// // this function is responsible for the video that plays on both html video.
-// function addVideoStream(video, stream) {
-//   video.srcObject = stream
-//   video.addEventListener('loadedmetadata', () => {
-//     video.play()
-//   })
-// }
+// this function is responsible for the video that plays on both html video.
+function addVideoStream(video, stream) {
+  video.srcObject = stream
+  video.addEventListener('loadedmetadata', () => {
+    video.play()
+  })
+}
 
 class PlayerLocal extends Player{
 	constructor(game, model){
@@ -579,34 +579,34 @@ class PlayerLocal extends Player{
 		socket.on('setId', function(data){
 			player.id = data.id;
 			// initialize peerjs using users socket id
-			// const myPeer = new Peer(data.id, {
-			// 	host: 'signaling-server-16cv.onrender.com',
-			// 	// port: 9000,
-			// 	path: '/peerjs/myapp'
-			// })
-			// console.log({myPeer})
+			const myPeer = new Peer(data.id, {
+				host: 'signaling-server-16cv.onrender.com',
+				// port: 9000,
+				path: '/peerjs/myapp'
+			})
+			console.log({myPeer})
 
 			// get current user media
-			// navigator.mediaDevices.getUserMedia({
-			// 	video: true,
-			// 	audio: true
-			// }).then(stream => {
-			// 	// add current video stream to the video element on the left
-			// 	addVideoStream(myVideo, stream)
+			navigator.mediaDevices.getUserMedia({
+				video: true,
+				audio: true
+			}).then(stream => {
+				// add current video stream to the video element on the left
+				addVideoStream(myVideo, stream)
 
-			// 	// listen for call event
-			// 	myPeer.on('call', call => {
-			// 		call.answer(stream) // answer call and send the caller current user stream
-			// 		call.on('stream', userVideoStream => { // listen for caller streams
-			// 			addVideoStream(remoteVideo, userVideoStream) // add caller stream to the video on the right
-			// 		})
-			// 	})
+				// listen for call event
+				myPeer.on('call', call => {
+					call.answer(stream) // answer call and send the caller current user stream
+					call.on('stream', userVideoStream => { // listen for caller streams
+						addVideoStream(remoteVideo, userVideoStream) // add caller stream to the video on the right
+					})
+				})
 
-			// 	socket.on('join media', ({id}) => { // listen for 'join media' socket event
-			// 		console.log('joined media: ', id)
-			// 		connectToNewUser(id, stream, myPeer) // connect to user by calling the user. Check the connectToNewUser function to see how the call was initiated 
-			// 	})
-			// })
+				socket.on('join media', ({id}) => { // listen for 'join media' socket event
+					console.log('joined media: ', id)
+					connectToNewUser(id, stream, myPeer) // connect to user by calling the user. Check the connectToNewUser function to see how the call was initiated 
+				})
+			})
 		});
 		socket.on('media disconnected', ({id}) => {
 			// remove remote user video when they disconnect
