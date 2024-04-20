@@ -61,13 +61,10 @@ http.listen(2002, function(){
   console.log('listening on *:2002');
 });
 
-setInterval(function(){
-	const nsp = io.of('/');
-    let pack = [];
-	
-    for(let id in io.sockets.sockets){
-        const socket = nsp.connected[id];
-		//Only push sockets that have been initialised
+setInterval(async function(){
+	let pack = [];
+	const sockets = await io.fetchSockets()
+	sockets.forEach(socket => {
 		if (socket.userData.model!==undefined){
 			pack.push({
 				id: socket.id,
@@ -81,6 +78,6 @@ setInterval(function(){
 				action: socket.userData.action
 			});    
 		}
-    }
+	})
 	if (pack.length>0) io.emit('remoteData', pack);
 }, 40);
