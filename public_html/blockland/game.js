@@ -580,8 +580,8 @@ class PlayerLocal extends Player{
 			player.id = data.id;
 			// initialize peerjs using users socket id
 			const myPeer = new Peer(data.id, {
-				host: 'signaling-server-16cv.onrender.com',
-				// port: 9000,
+				host: '192.168.0.101', // YOUR IP
+				port: 9000,
 				path: '/peerjs/myapp'
 			})
 			console.log({myPeer})
